@@ -1,0 +1,22 @@
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Lienzo de dibujo */
+#canvas {
+    background-color: #ff8;
+    border-radius: 12px;
+    box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.1);
+    display: block;
+    width: 100%;
+    height: 70vh;
+}
+
+/* Transición para botones */
+.btn {
+    transition: all 0.2s ease-in-out;
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+}
