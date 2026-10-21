@@ -1,185 +1,213 @@
-// Obtener el canvas y su contexto de dibujo
+// Obtención de elementos del DOM
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 
-// Dimensiones de la pantalla actual
-const window_height = window.innerHeight;
-const window_width = window.innerWidth;
-canvas.height = window_height;
-canvas.width = window_width;
-canvas.style.background = "#ff8";
+const scoreValEl = document.getElementById("scoreVal");
+const speedLevelEl = document.getElementById("speedLevel");
+const btnReset = document.getElementById("btnReset");
 
-class Circle {
-    constructor(x, y, radius, color, text, speed) {
-        this.posX = x;
-        this.posY = y;
-        this.radius = radius;
-        this.color = color;           // Color base asignado
-        this.currentColor = color;    // Color con el que se dibuja actualmente
-        this.text = text;
-        this.speed = speed;
-        this.isColliding = false;     // Estado de colisión en el frame actual
+// Redimensionar Canvas al contenedor
+function resizeCanvas() {
+    canvas.width = canvas.parentElement.clientWidth - 20;
+    canvas.height = canvas.parentElement.clientHeight - 20;
+}
+resizeCanvas();
+window.addEventListener("resize", resizeCanvas);
+
+// Precarga de Imágenes
+const bgImage = new Image();
+bgImage.src = "oficina.png";
+
+const characterSources = [
+    "fredy.png",
+    "bonnie.png",
+    "foxy.png",
+    "chica.png"
+];
+
+const characterImages = characterSources.map(src => {
+    const img = new Image();
+    img.src = src;
+    return img;
+});
+
+// Variables globales de la simulación
+let score = 0;
+let speedFactor = 1.0;
+const TOTAL_OBJECTS = 25; // Requerimiento: Siempre 25 objetos
+let characters = [];
+
+// Constantes Físicas
+const GRAVITY = 0.25;
+const BOUNCE_DAMPING = 0.65; // Factor de pérdida de energía al rebotar
+
+// Clase Character (Objeto presionable con tamaño variable y formato rectangular)
+class Character {
+    constructor(id) {
+        this.id = id;
+        this.resetPosition(true);
+    }
+
+    resetPosition(initial = false) {
+        // Seleccionar aleatoriamente una de las 4 imágenes
+        this.imageIndex = Math.floor(Math.random() * characterImages.length);
         
-        // Dirección de movimiento aleatoria
-        let angle = Math.random() * Math.PI * 2;
-        this.dx = Math.cos(angle) * this.speed;
-        this.dy = Math.sin(angle) * this.speed;
+        // VARIACIÓN DE TAMAÑO: Genera dimensiones aleatorias entre 35px y 75px
+        this.size = Math.random() * 40 + 35;
+        this.radius = this.size / 2; // Radio para el área de detección del clic
+        
+        this.posX = Math.random() * (canvas.width - this.size) + this.radius;
+        this.posY = initial ? -Math.random() * canvas.height * 0.8 : -this.size * 2;
+        
+        // Velocidad parabólica
+        this.vx = (Math.random() - 0.5) * 3;
+        this.vy = Math.random() * 1.5 + 0.5;
+        
+        this.bounces = 0;
     }
 
+    // Dibujar la imagen rectangular tal como es el archivo original
     draw(context) {
-        context.beginPath();
-        // Si está en colisión se pinta azul (#0000FF), de lo contrario usa su color original
-        context.strokeStyle = this.isColliding ? "#0000FF" : this.color;
-        context.textAlign = "center";
-        context.textBaseline = "middle";
-        context.font = "20px Arial";
-        context.fillText(this.text, this.posX, this.posY);
-        context.lineWidth = 2;
-        context.arc(this.posX, this.posY, this.radius, 0, Math.PI * 2, false);
-        context.stroke();
-        context.closePath();
+        const img = characterImages[this.imageIndex];
+        
+        context.save();
+        
+        if (img.complete && img.naturalWidth !== 0) {
+            // Renderizado directo de la imagen en formato rectangular completo
+            context.drawImage(
+                img, 
+                this.posX - this.radius, 
+                this.posY - this.radius, 
+                this.size, 
+                this.size
+            );
+        } else {
+            // Respaldar con un recuadro si la imagen aún no carga
+            context.fillStyle = "#FF0000";
+            context.fillRect(
+                this.posX - this.radius, 
+                this.posY - this.radius, 
+                this.size, 
+                this.size
+            );
+        }
+
+        context.restore();
     }
 
+    // Actualización de física (Caída libre y rebotes)
     update(context) {
+        this.vy += GRAVITY * speedFactor;
+
+        this.posX += this.vx * speedFactor;
+        this.posY += this.vy;
+
+        // Rebote en paredes laterales
+        if (this.posX + this.radius > canvas.width || this.posX - this.radius < 0) {
+            this.vx = -this.vx;
+        }
+
+        // Rebote en el suelo de la oficina
+        if (this.posY + this.radius >= canvas.height) {
+            this.posY = canvas.height - this.radius;
+            this.vy = -this.vy * BOUNCE_DAMPING; // Perder fuerza
+            this.vx *= 0.85; // Fricción
+            this.bounces++;
+
+            // Reaparecer arriba si pierde velocidad
+            if (Math.abs(this.vy) < 1.5 || this.bounces > 5) {
+                this.resetPosition();
+            }
+        }
+
         this.draw(context);
-
-        // Movimiento
-        this.posX += this.dx;
-        this.posY += this.dy;
-
-        // Rebote con los bordes de la pantalla (Eje X)
-        if (this.posX + this.radius > window_width) {
-            this.posX = window_width - this.radius;
-            this.dx = -this.dx;
-        } else if (this.posX - this.radius < 0) {
-            this.posX = this.radius;
-            this.dx = -this.dx;
-        }
-
-        // Rebote con los bordes de la pantalla (Eje Y)
-        if (this.posY + this.radius > window_height) {
-            this.posY = window_height - this.radius;
-            this.dy = -this.dy;
-        } else if (this.posY - this.radius < 0) {
-            this.posY = this.radius;
-            this.dy = -this.dy;
-        }
     }
 
-    // Inciso A: Comprobar si hay intersección entre dos círculos
-    isCollidingWith(otherCircle) {
-        let dx = otherCircle.posX - this.posX;
-        let dy = otherCircle.posY - this.posY;
+    // Detección de clic (mouseX, mouseY) considerando el tamaño actual
+    isClicked(mouseX, mouseY) {
+        let dx = mouseX - this.posX;
+        let dy = mouseY - this.posY;
         let distance = Math.sqrt(dx * dx + dy * dy);
-
-        return distance < (this.radius + otherCircle.radius);
-    }
-
-    // Inciso C: Resolver física de rebote y separación de cuerpos
-    resolveCollision(otherCircle) {
-        let dx = otherCircle.posX - this.posX;
-        let dy = otherCircle.posY - this.posY;
-        let distance = Math.sqrt(dx * dx + dy * dy);
-
-        if (distance === 0) {
-            distance = 0.1;
-            dx = 0.1;
-            dy = 0;
-        }
-
-        // Cantidad de solapamiento
-        let overlap = (this.radius + otherCircle.radius) - distance;
-
-        if (overlap > 0) {
-            // Vector unitario de dirección
-            let nx = dx / distance;
-            let ny = dy / distance;
-
-            // 1. Separar físicamente para evitar que se queden encimados o trabados
-            this.posX -= nx * (overlap / 2);
-            this.posY -= ny * (overlap / 2);
-            otherCircle.posX += nx * (overlap / 2);
-            otherCircle.posY += ny * (overlap / 2);
-
-            // 2. Recalcular físicas de rebote en dirección opuesta
-            let kx = this.dx - otherCircle.dx;
-            let ky = this.dy - otherCircle.dy;
-            let p = 2 * (nx * kx + ny * ky) / 2;
-
-            this.dx -= p * nx;
-            this.dy -= p * ny;
-            otherCircle.dx += p * nx;
-            otherCircle.dy += p * ny;
-        }
+        return distance <= this.radius * 1.2;
     }
 }
 
-let circles = [];
+// Inicialización de la partida
+function initGame() {
+    score = 0;
+    speedFactor = 1.0;
+    scoreValEl.textContent = score;
+    updateSpeedRules();
 
-// Generar 20 círculos sin solapamiento inicial
-function generateCircles(n) {
-    circles = [];
-    for (let i = 0; i < n; i++) {
-        let radius = Math.random() * 25 + 20; // Radio entre 20 y 45
-        let speed = Math.random() * 4 + 1;    // Velocidad entre 1 y 5
-        let text = `C${i + 1}`;
-        let color = `#${Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0')}`;
-
-        let x, y, overlapping;
-        let attempts = 0;
-
-        do {
-            overlapping = false;
-            x = Math.random() * (window_width - radius * 2) + radius;
-            y = Math.random() * (window_height - radius * 2) + radius;
-
-            for (let j = 0; j < circles.length; j++) {
-                let dx = circles[j].posX - x;
-                let dy = circles[j].posY - y;
-                let dist = Math.sqrt(dx * dx + dy * dy);
-                if (dist < radius + circles[j].radius) {
-                    overlapping = true;
-                    break;
-                }
-            }
-            attempts++;
-        } while (overlapping && attempts < 200);
-
-        circles.push(new Circle(x, y, radius, color, text, speed));
+    characters = [];
+    for (let i = 0; i < TOTAL_OBJECTS; i++) {
+        characters.push(new Character(i + 1));
     }
 }
 
-// Bucle de animación en tiempo real
+// Reglas de velocidad progresiva según la puntuación
+function updateSpeedRules() {
+    if (score > 20) {
+        speedFactor = 2.2;
+        speedLevelEl.textContent = "Alta (> 20 elim.)";
+        speedLevelEl.className = "badge bg-danger fs-6 mt-1";
+    } else if (score > 10) {
+        speedFactor = 1.5;
+        speedLevelEl.textContent = "Media (> 10 elim.)";
+        speedLevelEl.className = "badge bg-warning text-dark fs-6 mt-1";
+    } else {
+        speedFactor = 1.0;
+        speedLevelEl.textContent = "Normal (1.0x)";
+        speedLevelEl.className = "badge bg-success fs-6 mt-1";
+    }
+}
+
+// Evento de clic izquierdo del mouse
+canvas.addEventListener("click", (event) => {
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = event.clientX - rect.left;
+    const mouseY = event.clientY - rect.top;
+
+    for (let i = characters.length - 1; i >= 0; i--) {
+        if (characters[i].isClicked(mouseX, mouseY)) {
+            // Reaparecer en la parte superior con un nuevo tamaño dinámico
+            characters[i].resetPosition();
+
+            // Incrementar puntuación
+            score++;
+            scoreValEl.textContent = score;
+
+            updateSpeedRules();
+            break;
+        }
+    }
+});
+
+// Bucle de animación
 function animate() {
-    ctx.clearRect(0, 0, window_width, window_height);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // 1. Reiniciar estado de colisión de todos los círculos antes de verificar
-    circles.forEach(circle => {
-        circle.isColliding = false;
-    });
-
-    // 2. Evaluar colisiones y marcar el flasheo en azul
-    for (let i = 0; i < circles.length; i++) {
-        for (let j = i + 1; j < circles.length; j++) {
-            if (circles[i].isCollidingWith(circles[j])) {
-                // Marcar ambos círculos como colisionados para cambiar a azul
-                circles[i].isColliding = true;
-                circles[j].isColliding = true;
-
-                // Aplicar la respuesta de física y rebote
-                circles[i].resolveCollision(circles[j]);
-            }
-        }
+    // 1. Dibujar imagen de fondo (oficina.png)
+    if (bgImage.complete && bgImage.naturalWidth !== 0) {
+        ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
+    } else {
+        ctx.fillStyle = "#111";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
     }
 
-    // 3. Dibujar y actualizar las posiciones
-    circles.forEach(circle => {
-        circle.update(ctx);
+    // 2. Actualizar y renderizar los 25 animatrónicos
+    characters.forEach(char => {
+        char.update(ctx);
     });
 
     requestAnimationFrame(animate);
 }
 
-// Inicialización
-generateCircles(20);
+// Botón de Reiniciar
+btnReset.addEventListener("click", () => {
+    initGame();
+});
+
+// Iniciar aplicación
+initGame();
 animate();

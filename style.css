@@ -1,18 +1,44 @@
+/* Estilos generales */
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #121212 !important;
 }
 
-/* Lienzo de dibujo */
+/* Evitar la selección molesta que vuelve invisibles las letras en los paneles y botones */
+header, 
+footer, 
+.card, 
+.btn, 
+.badge, 
+#scoreBox, 
+.shadow-lg {
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+}
+
+/* Color de selección global con alto contraste por si el usuario arrastra el cursor */
+::selection {
+    background-color: #0d6efd !important;
+    color: #ffffff !important;
+}
+
+::-moz-selection {
+    background-color: #0d6efd !important;
+    color: #ffffff !important;
+}
+
+/* Lienzo de la simulación */
 #canvas {
-    background-color: #ff8;
     border-radius: 12px;
-    box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.1);
     display: block;
     width: 100%;
-    height: 70vh;
+    height: 75vh;
+    cursor: crosshair; /* Cursor de mirilla para disparar/hacer clic */
 }
 
-/* Transición para botones */
+/* Animación suave para botones */
 .btn {
     transition: all 0.2s ease-in-out;
 }
